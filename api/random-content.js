@@ -1,43 +1,81 @@
-export default async function handler(req, res) {
-  const GIPHY_API_KEY = "dc6zaTOxFJmzC"; // Public beta key
-  const UNSPLASH_ACCESS_KEY = "DEMO_KEY"; // Placeholder
+const fetch = require('node-fetch');
 
-  const contentSources = [
-    async () => {
-      const r = await fetch('https://dog.ceo/api/breeds/image/random');
-      const d = await r.json();
-      return { type: 'image', url: d.message };
-    },
-    async () => {
-      const r = await fetch(`https://api.giphy.com/v1/gifs/random?api_key=${GIPHY_API_KEY}&tag=funny`);
-      const d = await r.json();
-      return { type: 'gif', url: d.data.images.original.url };
-    },
-    async () => {
-      const r = await fetch('https://v2.jokeapi.dev/joke/Any?safe-mode');
-      const d = await r.json();
-      return {
-        type: 'text',
-        text: d.joke || `${d.setup} — ${d.delivery}`,
-      };
-    },
-    async () => {
-      const r = await fetch('https://affirmations.dev/');
-      const d = await r.json();
-      return { type: 'text', text: d.affirmation };
-    },
-    async () => {
-      const r = await fetch(`https://api.unsplash.com/photos/random?client_id=${UNSPLASH_ACCESS_KEY}`);
-      const d = await r.json();
-      return { type: 'image', url: d.urls.regular };
-    },
+module.exports = async (req, res) => {
+  const sources = [
+    getGiphy,
+    getUnsplash,
+    getCompliment,
+    getQuote,
+    getYesNo,
+    getCat,
+    getBoredIdea,
+    getUselessFact,
   ];
 
+  const source = sources[Math.floor(Math.random() * sources.length)];
   try {
-    const content = await contentSources[Math.floor(Math.random() * contentSources.length)]();
-    res.status(200).json(content);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Something went wrong 😞' });
+    const result = await source();
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Something went wrong.', detail: error.message });
   }
+};
+
+// GIPHY (requires public API key)
+async function getGiphy() {
+  const apiKey = process.env.GIPHY_API_KEY || 'dc6zaTOxFJmzC';
+  const res = await fetch(`https://api.giphy.com/v1/gifs/random?api_key=${apiKey}&rating=pg`);
+  const data = await res.json();
+  return { type: 'gif', url: data.data.images.original.url };
+}
+
+// Unsplash via source.unsplash.com (no key needed)
+async function getUnsplash() {
+  const width = 800;
+  const height = 600;
+  const url = `https://source.unsplash.com/random/${width}x${height}`;
+  return { type: 'image', url };
+}
+
+// Complimentr
+async function getCompliment() {
+  const res = await fetch('https://complimentr.com/api');
+  const data = await res.json();
+  return { type: 'text', text: data.compliment };
+}
+
+// Quotable
+async function getQuote() {
+  const res = await fetch('https://api.quotable.io/random');
+  const data = await res.json();
+  return { type: 'text', text: `“${data.content}” — ${data.author}` };
+}
+
+// YesNo.wtf
+async function getYesNo() {
+  const res = await fetch('https://yesno.wtf/api');
+  const data = await res.json();
+  return { type: 'gif', url: data.image };
+}
+
+// Cataas (Cat as a service)
+async function getCat() {
+  const url = 'https://cataas.com/cat?json=true';
+  const res = await fetch(url);
+  const data = await res.json();
+  return { type: 'image', url: `https://cataas.com${data.url}` };
+}
+
+// Bored API
+async function getBoredIdea() {
+  const res = await fetch('https://www.boredapi.com/api/activity');
+  const data = await res.json();
+  return { type: 'text', text: `Try this: ${data.activity}` };
+}
+
+// Useless Facts
+async function getUselessFact() {
+  const res = await fetch('https://uselessfacts.jsph.pl/random.json?language=en');
+  const data = await res.json();
+  return { type: 'text', text: data.text };
 }
